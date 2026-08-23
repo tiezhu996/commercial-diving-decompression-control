@@ -23,9 +23,18 @@ func Auth(service *auth.Service) gin.HandlerFunc {
 			util.Fail(c, err)
 			return
 		}
-		c.Set(util.ContextUserID, claims.UserID)
-		c.Set(util.ContextUsername, claims.Username)
-		c.Set(util.ContextRole, claims.Role)
+		// Revalidate the account on every protected request so deactivation
+		// and role changes take effect immediately, rather than trusting the
+		// (possibly stale) role baked into the JWT at login time.
+		principal, err := service.CurrentPrincipal(c.Request.Context(), claims.UserID)
+		if err != nil {
+			c.Abort()
+			util.Fail(c, err)
+			return
+		}
+		c.Set(util.ContextUserID, principal.ID)
+		c.Set(util.ContextUsername, principal.Username)
+		c.Set(util.ContextRole, principal.Role)
 		c.Next()
 	}
 }

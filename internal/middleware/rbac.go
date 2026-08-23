@@ -11,7 +11,8 @@ func RBAC(roles ...string) gin.HandlerFunc {
 		allowed[role] = true
 	}
 	return func(c *gin.Context) {
-		if util.Role(c) == "" {
+		role := util.Role(c)
+		if role == "" || !allowed[role] {
 			c.Abort()
 			util.Fail(c, util.Forbidden("current role cannot perform this operation"))
 			return
