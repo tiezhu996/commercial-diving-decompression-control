@@ -23,7 +23,14 @@ type LocalRateLimiter struct {
 }
 
 func NewLocalRateLimiter(limit int) *LocalRateLimiter {
-	return &LocalRateLimiter{limit: limit, window: time.Minute, visitors: map[string]visitorWindow{}}
+	return NewLocalRateLimiterWithWindow(limit, time.Minute)
+}
+
+// NewLocalRateLimiterWithWindow constructs a limiter with an explicit window,
+// primarily so callers (and tests) can exercise the window-reset path without
+// waiting a full minute.
+func NewLocalRateLimiterWithWindow(limit int, window time.Duration) *LocalRateLimiter {
+	return &LocalRateLimiter{limit: limit, window: window, visitors: map[string]visitorWindow{}}
 }
 
 func (l *LocalRateLimiter) Handler() gin.HandlerFunc {
@@ -32,22 +39,28 @@ func (l *LocalRateLimiter) Handler() gin.HandlerFunc {
 		key := c.ClientIP()
 		l.mu.Lock()
 		state, exists := l.visitors[key]
-		if !exists {
+		// Fixed window: reset the counter once the previous window has elapsed
+		// so a client is never stuck over the limit after the window passes.
+		if !exists || now.Sub(state.started) >= l.window {
 			state = visitorWindow{started: now}
 		}
 		state.count++
-		remaining := l.limit - state.count
-		reset := state.started.Add(l.window)
-		l.mu.Unlock()
+		// All map access happens under the lock; writing back outside the lock
+		// caused a data race and lost updates that let the counter drift below
+		// the real request rate.
 		l.visitors[key] = state
-
+		remaining := l.limit - state.count
 		if remaining < 0 {
 			remaining = 0
 		}
+		reset := state.started.Add(l.window)
+		blocked := state.count > l.limit
+		l.mu.Unlock()
+
 		c.Header("X-RateLimit-Limit", strconv.Itoa(l.limit))
 		c.Header("X-RateLimit-Remaining", strconv.Itoa(remaining))
 		c.Header("X-RateLimit-Reset", strconv.FormatInt(reset.Unix(), 10))
-		if state.count >= l.limit {
+		if blocked {
 			c.Header("Retry-After", strconv.Itoa(int(time.Until(reset).Seconds())+1))
 			c.Abort()
 			c.JSON(http.StatusTooManyRequests, util.Envelope{
