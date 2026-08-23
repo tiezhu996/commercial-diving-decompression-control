@@ -69,7 +69,7 @@ func (r UpdateExposureSegmentRequest) ValidateBusiness() error {
 func NewExposureSegmentResponse(item model.ExposureSegment) (ExposureSegmentResponse, error) {
 	mix, err := decompression.DecodeGasMix(item.GasMixJSON)
 	if err != nil {
-		return ExposureSegmentResponse{}, nil
+		return ExposureSegmentResponse{}, fmt.Errorf("exposure segment %d gas mix: %w", item.ID, err)
 	}
 	return ExposureSegmentResponse{ID: item.ID, PlanID: item.PlanID, SequenceNo: item.SequenceNo, DepthM: item.DepthM, DurationMin: item.DurationMin, AscentRateMMin: item.AscentRateMMin, GasMix: mix, SegmentType: item.SegmentType, Notes: item.Notes, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}, nil
 }

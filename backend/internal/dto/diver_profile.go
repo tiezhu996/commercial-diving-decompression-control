@@ -56,6 +56,9 @@ func validateDefaultMix(o2, he float64) error {
 	return decompression.GasMix{O2: o2, He: he, N2: n2}.Validate()
 }
 
-func NewDiverProfileResponse(item model.DiverProfile) DiverProfileResponse {
-	return DiverProfileResponse{DiverProfile: item, DefaultN2Fraction: item.DefaultN2Fraction()}
+func NewDiverProfileResponse(item model.DiverProfile) (DiverProfileResponse, error) {
+	if err := validateDefaultMix(item.DefaultO2Fraction, item.DefaultHeFraction); err != nil {
+		return DiverProfileResponse{}, fmt.Errorf("diver profile %d default gas: %w", item.ID, err)
+	}
+	return DiverProfileResponse{DiverProfile: item, DefaultN2Fraction: item.DefaultN2Fraction()}, nil
 }

@@ -28,7 +28,11 @@ func (s *DiverProfileService) List(ctx context.Context, search, status string, p
 	}
 	responses := make([]dto.DiverProfileResponse, 0, len(items))
 	for _, item := range items {
-		responses = append(responses, dto.NewDiverProfileResponse(item))
+		response, decodeErr := dto.NewDiverProfileResponse(item)
+		if decodeErr != nil {
+			return nil, 0, decodeErr
+		}
+		responses = append(responses, response)
 	}
 	return responses, total, nil
 }
@@ -38,7 +42,7 @@ func (s *DiverProfileService) Get(ctx context.Context, id uint) (dto.DiverProfil
 	if err != nil {
 		return dto.DiverProfileResponse{}, err
 	}
-	return dto.NewDiverProfileResponse(item), nil
+	return dto.NewDiverProfileResponse(item)
 }
 
 func (s *DiverProfileService) Create(ctx context.Context, req dto.CreateDiverProfileRequest, actor audit.Entry) (dto.DiverProfileResponse, error) {
@@ -56,7 +60,7 @@ func (s *DiverProfileService) Create(ctx context.Context, req dto.CreateDiverPro
 	if err := s.profiles.Create(ctx, &item, actor); err != nil {
 		return dto.DiverProfileResponse{}, err
 	}
-	return dto.NewDiverProfileResponse(item), nil
+	return dto.NewDiverProfileResponse(item)
 }
 
 func (s *DiverProfileService) Update(ctx context.Context, id uint, req dto.UpdateDiverProfileRequest, actor audit.Entry) (dto.DiverProfileResponse, error) {

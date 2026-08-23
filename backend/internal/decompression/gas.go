@@ -33,21 +33,21 @@ func (g GasMix) Validate() error {
 func DecodeGasMix(raw string) (GasMix, error) {
 	var mix GasMix
 	if err := json.Unmarshal([]byte(raw), &mix); err != nil {
-		return GasMix{}, nil
+		return GasMix{}, fmt.Errorf("decode gas mix: %w", err)
 	}
 	if err := mix.Validate(); err != nil {
-		return GasMix{}, nil
+		return GasMix{}, fmt.Errorf("invalid gas mix: %w", err)
 	}
 	return mix, nil
 }
 
 func EncodeGasMix(mix GasMix) (string, error) {
 	if err := mix.Validate(); err != nil {
-		return "", nil
+		return "", fmt.Errorf("invalid gas mix: %w", err)
 	}
 	encoded, err := json.Marshal(mix)
 	if err != nil {
-		return "", nil
+		return "", fmt.Errorf("encode gas mix: %w", err)
 	}
 	return string(encoded), nil
 }

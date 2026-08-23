@@ -60,7 +60,7 @@ func (r CreateDivePlanRequest) ValidateBusiness() error {
 func NewDivePlanResponse(item model.DivePlan, profileCode string) (DivePlanResponse, error) {
 	mix, err := decompression.DecodeGasMix(item.BreathingMixJSON)
 	if err != nil {
-		return DivePlanResponse{}, nil
+		return DivePlanResponse{}, fmt.Errorf("dive plan %d breathing mix: %w", item.ID, err)
 	}
 	return DivePlanResponse{
 		ID: item.ID, PlanCode: item.PlanCode, DiverProfileID: item.DiverProfileID, DiverProfileCode: profileCode,
