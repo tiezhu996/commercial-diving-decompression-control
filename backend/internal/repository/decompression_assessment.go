@@ -58,7 +58,15 @@ func (r *DecompressionAssessmentRepository) LatestByPlan(ctx context.Context, pl
 
 func (r *DecompressionAssessmentRepository) CreateModeled(ctx context.Context, plan model.DivePlan, item *model.DecompressionAssessment, entry audit.Entry) (err error) {
 	tx := r.db.WithContext(ctx).Begin()
-	defer func() { err = tx.Commit().Error }()
+	defer func() {
+		if err != nil {
+			// Roll back on any failure so the plan is not advanced to modeled while
+			// the immutable assessment (or its audit trail) was not fully written.
+			_ = tx.Rollback().Error
+			return
+		}
+		err = tx.Commit().Error
+	}()
 	result := tx.Model(&model.DivePlan{}).Where("id = ? AND version = ? AND plan_status = ?", plan.ID, plan.Version, constants.PlanDraft).Updates(map[string]any{"plan_status": constants.PlanModeled, "version": gorm.Expr("version + 1")})
 	if result.Error != nil {
 		return fmt.Errorf("mark plan modeled: %w", result.Error)
@@ -82,9 +90,15 @@ func (r *DecompressionAssessmentRepository) CreateModeled(ctx context.Context, p
 	return r.audit.RecordWithDB(ctx, tx, planEntry)
 }
 
-func (r *DecompressionAssessmentRepository) Transition(ctx context.Context, plan model.DivePlan, assessment model.DecompressionAssessment, target constants.PlanStatus, actorID uint, entry audit.Entry) error {
+func (r *DecompressionAssessmentRepository) Transition(ctx context.Context, plan model.DivePlan, assessment model.DecompressionAssessment, target constants.PlanStatus, actorID uint, entry audit.Entry) (err error) {
 	tx := r.db.WithContext(ctx).Begin()
-	defer func() { _ = tx.Rollback() }()
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback().Error
+			return
+		}
+		err = tx.Commit().Error
+	}()
 	planChanges := map[string]any{"plan_status": target, "version": gorm.Expr("version + 1")}
 	assessmentChanges := map[string]any{"assessment_status": string(target)}
 	if target == constants.PlanApprovedTraining {
@@ -102,6 +116,11 @@ func (r *DecompressionAssessmentRepository) Transition(ctx context.Context, plan
 	assessmentResult := tx.Model(&model.DecompressionAssessment{}).Where("id = ? AND assessment_status = ?", assessment.ID, assessment.AssessmentStatus).Updates(assessmentChanges)
 	if assessmentResult.Error != nil {
 		return fmt.Errorf("transition assessment metadata: %w", assessmentResult.Error)
+	}
+	if assessmentResult.RowsAffected != 1 {
+		// The assessment no longer matches the review state the caller validated
+		// against. Reject instead of leaving the plan and assessment divergent.
+		return util.Conflict("ASSESSMENT_STATE_CONFLICT", "assessment review state changed concurrently", nil)
 	}
 	entry.EntityID = assessment.ID
 	if err := r.audit.RecordWithDB(ctx, tx, entry); err != nil {
