@@ -12,9 +12,9 @@ const (
 
 var planTransitions = map[PlanStatus]map[PlanStatus]bool{
 	PlanDraft:            {PlanModeled: true},
-	PlanModeled:          {PlanDraft: true, PlanPendingReview: true, PlanApprovedTraining: true},
-	PlanPendingReview:    {PlanDraft: true, PlanApprovedTraining: true, PlanArchived: true},
-	PlanApprovedTraining: {PlanArchived: true, PlanDraft: true},
+	PlanModeled:          {PlanPendingReview: true},
+	PlanPendingReview:    {PlanApprovedTraining: true},
+	PlanApprovedTraining: {PlanArchived: true},
 	PlanArchived:         {},
 }
 
@@ -25,7 +25,7 @@ func ValidPlanStatus(status PlanStatus) bool {
 
 func CanTransitionPlan(from, to PlanStatus) bool {
 	if from == to {
-		return true
+		return false
 	}
 	return planTransitions[from][to]
 }
