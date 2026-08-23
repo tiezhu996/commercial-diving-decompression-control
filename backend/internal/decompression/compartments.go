@@ -117,10 +117,10 @@ func calculateCurves(plan model.DivePlan, diver model.DiverProfile, segments []m
 	}
 	baselineN2 := InspiredPartialPressureBar(baselineAmbient, defaultMix.N2)
 	baselineHe := InspiredPartialPressureBar(baselineAmbient, defaultMix.He)
-	curves := make([]CompartmentCurve, len(specs))
+	curves := make([]CompartmentCurve, 0, len(specs))
 	for _, spec := range specs {
 		n2Load, heLoad, elapsed := baselineN2, baselineHe, 0.0
-		points := make([]LoadPoint, len(segments)+1)
+		points := make([]LoadPoint, 0, len(segments)+1)
 		points = append(points, LoadPoint{SequenceNo: 0, DepthM: 0, ElapsedMin: 0, AmbientBar: baselineAmbient, InspiredN2Bar: baselineN2, InspiredHeBar: baselineHe, N2LoadBar: n2Load, HeLoadBar: heLoad, TotalInertBar: round4(n2Load + heLoad)})
 		for _, segment := range segments {
 			mix, err := DecodeGasMix(segment.GasMixJSON)

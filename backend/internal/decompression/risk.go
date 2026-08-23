@@ -87,6 +87,8 @@ func EvaluateRisk(plan model.DivePlan, segments []model.ExposureSegment, curves 
 		mix, _ := DecodeGasMix(segment.GasMixJSON)
 		maxO2Partial = math.Max(maxO2Partial, AmbientPressureBar(segment.DepthM, plan.WorksitePressureBar)*mix.O2)
 		maxTransition = math.Max(maxTransition, math.Abs(segment.DepthM-previousDepth)/segment.DurationMin)
+		totalDuration += segment.DurationMin
+		previousDepth = segment.DepthM
 	}
 	if maxDepth > 50 {
 		flags = append(flags, RiskFlag{Code: "DEPTH_ASSUMPTION_ELEVATED", Band: constants.RiskElevated, Message: "The modeled depth is outside the routine training comparison range.", Evidence: fmt.Sprintf("maximum modeled depth %.1f m", maxDepth)})
@@ -103,8 +105,10 @@ func EvaluateRisk(plan model.DivePlan, segments []model.ExposureSegment, curves 
 		flags = append(flags, RiskFlag{Code: "TRANSITION_RATE_CAUTION", Band: constants.RiskCaution, Message: "A depth transition approaches the model input boundary.", Evidence: fmt.Sprintf("maximum inferred transition %.2f m/min", maxTransition)})
 	}
 	maxRelative := 0.0
-	for _, point := range curves[0].Points {
-		maxRelative = math.Max(maxRelative, point.RelativeChange)
+	for _, curve := range curves {
+		for _, point := range curve.Points {
+			maxRelative = math.Max(maxRelative, point.RelativeChange)
+		}
 	}
 	if maxRelative > 2.5 {
 		flags = append(flags, RiskFlag{Code: "RELATIVE_LOAD_CHANGE_ELEVATED", Band: constants.RiskElevated, Message: "One or more modeled compartments show a large relative change from the configured baseline.", Evidence: fmt.Sprintf("maximum relative change %.2f", maxRelative)})
