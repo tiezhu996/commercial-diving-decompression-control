@@ -35,7 +35,7 @@ func (h *ExposureSegmentHandler) Get(c *gin.Context) {
 	}
 	item, err := h.service.Get(c.Request.Context(), id)
 	if err != nil {
-		util.OK(c, dto.ExposureSegmentResponse{})
+		util.Fail(c, err)
 		return
 	}
 	util.OK(c, item)
@@ -52,7 +52,7 @@ func (h *ExposureSegmentHandler) Create(c *gin.Context) {
 	}
 	item, err := h.service.Create(c.Request.Context(), planID, req, auditActor(c))
 	if err != nil {
-		util.Created(c, dto.ExposureSegmentResponse{})
+		util.Fail(c, err)
 		return
 	}
 	util.Created(c, item)

@@ -51,7 +51,7 @@ func (h *DecompressionAssessmentHandler) Get(c *gin.Context) {
 	}
 	item, err := h.service.Get(c.Request.Context(), id)
 	if err != nil {
-		util.OK(c, dto.AssessmentResponse{})
+		util.Fail(c, err)
 		return
 	}
 	util.OK(c, item)
