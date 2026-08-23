@@ -11,7 +11,7 @@ import (
 )
 
 type RunAssessmentRequest struct {
-	PlanVersion uint `json:"plan_version" binding:"omitempty"`
+	PlanVersion uint `json:"plan_version" binding:"required,min=1"`
 }
 
 type AssessmentResponse struct {

@@ -56,6 +56,9 @@ func (s *DecompressionAssessmentService) Run(ctx context.Context, planID uint, r
 	if err != nil {
 		return dto.AssessmentResponse{}, err
 	}
+	if req.PlanVersion != plan.Version {
+		return dto.AssessmentResponse{}, util.Conflict("PLAN_VERSION_CONFLICT", "dive plan was changed by another user", nil)
+	}
 	if plan.PlanStatus != constants.PlanDraft {
 		return dto.AssessmentResponse{}, util.Conflict("PLAN_NOT_DRAFT", "only a draft plan can run a new immutable assessment", nil)
 	}
@@ -108,8 +111,14 @@ func (s *DecompressionAssessmentService) transition(ctx context.Context, id uint
 	if err != nil {
 		return dto.AssessmentResponse{}, err
 	}
+	if req.Version != plan.Version {
+		return dto.AssessmentResponse{}, util.Conflict("PLAN_VERSION_CONFLICT", "dive plan was changed by another user", nil)
+	}
 	if !constants.CanTransitionPlan(plan.PlanStatus, target) {
 		return dto.AssessmentResponse{}, util.Unprocessable("INVALID_PLAN_TRANSITION", fmt.Sprintf("cannot transition from %s to %s", plan.PlanStatus, target), nil)
+	}
+	if assessment.AssessmentStatus != string(plan.PlanStatus) {
+		return dto.AssessmentResponse{}, util.Conflict("ASSESSMENT_PLAN_STATE_MISMATCH", "assessment review state does not match the plan review state", nil)
 	}
 	actor.Action = "decompression_assessment.submit_review"
 	if target == constants.PlanApprovedTraining {
